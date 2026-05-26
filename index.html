@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>算法可视化中控台 Pro Max</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            padding-top: 40px;
+            padding-bottom: 40px;
+            margin: 0;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            padding: 30px;
+            width: 900px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .control-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f8fafc;
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+
+        /* 新增：漂亮的下拉菜单样式 */
+        .select-box {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 16px;
+            font-weight: bold;
+            color: #1e293b;
+            background-color: white;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        .btn {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn:hover { background-color: #2563eb; }
+        .btn:disabled { background-color: #9ca3af; cursor: not-allowed; }
+        
+        .btn-run { background-color: #10b981; }
+        .btn-run:hover { background-color: #059669; }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+            color: #475569;
+        }
+        input[type="range"] { cursor: pointer; }
+
+        #chart-container { width: 100%; height: 350px; }
+
+        .terminal {
+            background-color: #1e293b;
+            color: #34d399;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 15px;
+            border-radius: 12px;
+            height: 150px;
+            overflow-y: auto;
+            margin-top: 20px;
+            box-shadow: inset 0 4px 6px rgba(0,0,0,0.3);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .terminal span.warn { color: #facc15; }
+        .terminal span.highlight { color: #38bdf8; } /* 蓝色高亮文字 */
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="header">
+            <h1 style="margin:0; color:#1e293b;">⚡ 核心算法可视化平台</h1>
+            <p style="color: #64748b; margin-top:8px;">实时图表 · 多算法引擎 · 运行日志</p>
+        </div>
+        
+        <div class="control-panel">
+            <div>
+                <button id="btn-gen" class="btn" onclick="initData()">🔄 刷新数据</button>
+                
+                <select id="algo-select" class="select-box">
+                    <option value="bubble">冒泡排序 (Bubble Sort)</option>
+                    <option value="selection">选择排序 (Selection Sort)</option>
+                </select>
+
+                <button id="btn-start" class="btn btn-run" onclick="startAlgorithm()">▶️ 运行</button>
+            </div>
+            <div class="slider-container">
+                🐢
+                <input type="range" id="speed-slider" min="1" max="100" value="50"> 
+                🐇
+            </div>
+        </div>
+
+        <div id="chart-container"></div>
+
+        <div class="terminal" id="log-box">
+            <div>> 系统初始化完成，选择算法并准备运行...</div>
+        </div>
+    </div>
+
+    <script>
+        let chart = echarts.init(document.getElementById('chart-container'));
+        let dataArray = [];
+        let isRunning = false; 
+
+        // 终端与界面控制模块
+        function writeLog(message, isWarning = false) {
+            let logBox = document.getElementById("log-box");
+            let time = new Date().toLocaleTimeString();
+            let content = isWarning ? `<span class="warn">${message}</span>` : message;
+            logBox.innerHTML += `<div>[${time}] > ${content}</div>`;
+            logBox.scrollTop = logBox.scrollHeight; 
+        }
+
+        function clearLog() {
+            document.getElementById("log-box").innerHTML = `<div>> 系统待命...</div>`;
+        }
+
+        function toggleButtons(disabled) {
+            document.getElementById("btn-gen").disabled = disabled;
+            document.getElementById("btn-start").disabled = disabled;
+            document.getElementById("algo-select").disabled = disabled; // 运行时也不能切换算法
+        }
+
+        function getDelay() {
+            let speed = document.getElementById("speed-slider").value;
+            return 1010 - (speed * 10);
+        }
+        function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+
+        // 渲染模块：加入了第三个参数，用于标记“最小值”这种特殊状态（紫色）
+        function renderChart(data, activeIdx1 = -1, activeIdx2 = -1, specialIdx = -1) {
+            let option = {
+                xAxis: { type: 'category', show: false },
+                yAxis: { type: 'value', splitLine: { lineStyle: { type: 'dashed' } } },
+                series: [{
+                    data: data,
+                    type: 'bar',
+                    itemStyle: {
+                        borderRadius: [6, 6, 0, 0],
+                        color: function(params) {
+                            if (params.dataIndex === specialIdx) return '#a855f7'; // 特殊标记（比如最小值）显示紫色
+                            if (params.dataIndex === activeIdx1 || params.dataIndex === activeIdx2) return '#f59e0b'; // 扫描对比显示橙色
+                            return '#60a5fa'; // 默认蓝色
+                        }
+                    },
+                    label: { show: true, position: 'top', color: '#475569', fontWeight: 'bold' }
+                }],
+                animationDurationUpdate: getDelay() * 0.8
+            };
+            chart.setOption(option);
+        }
+
+        // 数据模块
+        function initData() {
+            dataArray = [];
+            for (let i = 0; i < 12; i++) {
+                dataArray.push(Math.floor(Math.random() * 90) + 10);
+            }
+            renderChart(dataArray);
+            clearLog();
+            writeLog("新数据生成完毕。");
+        }
+
+        // --- 核心调度员 ---
+        function startAlgorithm() {
+            let algo = document.getElementById("algo-select").value;
+            if (algo === "bubble") {
+                runBubbleSort();
+            } else if (algo === "selection") {
+                runSelectionSort();
+            }
+        }
+
+        // --- 算法引擎 1：冒泡排序 ---
+        async function runBubbleSort() {
+            if (isRunning) return; 
+            isRunning = true;
+            toggleButtons(true);
+            writeLog("开始执行【冒泡排序】...");
+
+            let len = dataArray.length;
+            for (let i = 0; i < len; i++) {
+                for (let j = 0; j < len - 1 - i; j++) {
+                    writeLog(`比对: ${dataArray[j]} 和 ${dataArray[j+1]}`);
+                    renderChart(dataArray, j, j + 1);
+                    await sleep(getDelay());
+
+                    if (dataArray[j] > dataArray[j + 1]) {
+                        writeLog(`[发生交换]`, true);
+                        let temp = dataArray[j];
+                        dataArray[j] = dataArray[j + 1];
+                        dataArray[j + 1] = temp;
+                        renderChart(dataArray, j, j + 1);
+                        await sleep(getDelay());
+                    }
+                }
+                writeLog(`第 ${i+1} 轮扫描结束，最大值已沉底。`);
+            }
+            
+            writeLog("🎉 排序完成！");
+            renderChart(dataArray);
+            isRunning = false;
+            toggleButtons(false);
+        }
+
+        // --- 算法引擎 2：选择排序 (全新加入！) ---
+        async function runSelectionSort() {
+            if (isRunning) return; 
+            isRunning = true;
+            toggleButtons(true);
+            writeLog("开始执行【选择排序】...");
+
+            let len = dataArray.length;
+            for (let i = 0; i < len - 1; i++) {
+                let minIdx = i;
+                writeLog(`第 ${i+1} 轮：设定基准位的值为 <span class="highlight">${dataArray[i]}</span>，开始寻找后续更小的值...`);
+
+                for (let j = i + 1; j < len; j++) {
+                    // 第三个参数传入 minIdx，让当前找到的最小值柱子显示紫色
+                    renderChart(dataArray, i, j, minIdx);
+                    await sleep(getDelay());
+
+                    if (dataArray[j] < dataArray[minIdx]) {
+                        writeLog(`[发现更小值] ${dataArray[j]}，更新最小标记（紫色）`, true);
+                        minIdx = j;
+                        renderChart(dataArray, i, j, minIdx); // 更新紫色柱子的位置
+                        await sleep(getDelay());
+                    }
+                }
+
+                if (minIdx !== i) {
+                    writeLog(`[执行交换] 将找到的最小值 ${dataArray[minIdx]} 放到前面的基准位。`);
+                    let temp = dataArray[i];
+                    dataArray[i] = dataArray[minIdx];
+                    dataArray[minIdx] = temp;
+                    renderChart(dataArray, i, minIdx);
+                    await sleep(getDelay());
+                } else {
+                    writeLog(`没有比基准位更小的值，无需交换。`);
+                }
+            }
+
+            writeLog("🎉 排序完成！");
+            renderChart(dataArray);
+            isRunning = false;
+            toggleButtons(false);
+        }
+
+        initData();
+    </script>
+</body>
+</html>
