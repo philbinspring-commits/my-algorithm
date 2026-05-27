@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>数据结构与算法互动学习平台</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-body: #f8fafc; --bg-sidebar: #ffffff; --bg-card: #ffffff;
+            --text-main: #1e293b; --text-muted: #64748b;
+            --primary: #3b82f6; --primary-hover: #2563eb;
+            --border-color: #e2e8f0; --shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        .sidebar { width: 260px; background-color: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 30px 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.02); z-index: 10; }
+        .sidebar-header { margin-bottom: 40px; text-align: center; }
+        .sidebar-header h2 { margin: 0; font-size: 22px; color: var(--primary); font-weight: 800; }
+        .sidebar-header p { margin: 5px 0 0; font-size: 13px; color: var(--text-muted); }
+        
+        .menu-btn { background: transparent; border: 1px solid transparent; color: var(--text-muted); padding: 14px 20px; text-align: left; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 10px; margin-bottom: 10px; transition: all 0.3s; }
+        .menu-btn:hover { background: #f1f5f9; color: var(--text-main); }
+        .menu-btn.active { background: #eff6ff; color: var(--primary); border: 1px solid #bfdbfe; }
+
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .dashboard-card { background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); padding: 35px; box-shadow: var(--shadow); }
+        .panel-title { margin-top: 0; font-size: 26px; border-bottom: 2px solid #f1f5f9; padding-bottom: 15px; margin-bottom: 25px;}
+        
+        .controls { display: flex; gap: 15px; align-items: center; background: #f8fafc; padding: 15px 20px; border-radius: 10px; border: 1px solid var(--border-color); margin-bottom: 25px; }
+        .btn { background-color: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2); }
+        .btn:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+        .btn:disabled { background-color: #94a3b8; cursor: not-allowed; box-shadow: none; transform: none; }
+        .btn-green { background-color: #10b981; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2); }
+        .btn-green:hover { background-color: #059669; }
+        .btn-red { background-color: #f43f5e; }
+        .btn-red:hover { background-color: #e11d48; }
+
+        .select-input { background: white; color: var(--text-main); border: 1px solid #cbd5e1; padding: 10px 15px; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
+        .number-input { padding: 9px 15px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; width: 80px; text-align: center; font-weight: bold;}
+        .chart-stage { width: 100%; height: 400px; }
+
+        .log-box { background-color: #f1f5f9; color: #475569; font-family: monospace; padding: 15px; border-radius: 10px; height: 120px; overflow-y: auto; margin-top: 20px; border: 1px solid var(--border-color); font-size: 14px; line-height: 1.6; }
+        .log-box span.highlight { color: #ea580c; font-weight: bold; }
+        .log-box span.action { color: #8b5cf6; font-weight: bold; }
+
+        /* 线性表专属样式 */
+        .struct-container { display: flex; gap: 40px; justify-content: center; margin-top: 30px; }
+        .stack-wrapper { display: flex; flex-direction: column; align-items: center; width: 200px; }
+        .stack-box { width: 120px; height: 300px; border: 4px solid var(--text-main); border-top: none; border-radius: 0 0 10px 10px; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; gap: 5px; background: #f8fafc; overflow: hidden; }
+        .queue-wrapper { display: flex; flex-direction: column; align-items: center; width: 400px; }
+        .queue-box { width: 100%; height: 80px; border-top: 4px solid var(--text-main); border-bottom: 4px solid var(--text-main); display: flex; align-items: center; justify-content: flex-start; padding: 0 10px; gap: 5px; background: #f8fafc; overflow: hidden; }
+        .data-node { background: #3b82f6; color: white; font-weight: bold; font-size: 18px; display: flex; justify-content: center; align-items: center; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .stack-box .data-node { width: 100%; height: 40px; flex-shrink: 0; }
+        .queue-box .data-node { width: 50px; height: 50px; flex-shrink: 0; }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>学习室</h2>
+            <p>数据结构与算法基础</p>
+        </div>
+        <button class="menu-btn active" id="menu-algo" onclick="switchTab('algo')">排序算法</button>
+        <button class="menu-btn" id="menu-struct" onclick="switchTab('struct')">栈与队列</button>
+        <button class="menu-btn" id="menu-tree" onclick="switchTab('tree')">AVL 平衡二叉树</button>
+        <button class="menu-btn" id="menu-graph" onclick="switchTab('graph')">图算法遍历</button>
+    </div>
+
+    <div class="main-content">
+        
+        <div id="section-algo" class="view-section active">
+            <div class="dashboard-card">
+                <h2 class="panel-title">排序算法可视化</h2>
+                <div class="controls">
+                    <button class="btn" onclick="initAlgoData()" id="btn-reset">随机打乱</button>
+                    <select id="algo-select" class="select-input">
+                        <option value="bubble">冒泡排序 (O(n²))</option>
+                        <option value="selection">选择排序 (O(n²))</option>
+                        <option value="insertion">插入排序 (O(n²))</option>
+                        <option value="shell">希尔排序 (O(n log²n))</option>
+                        <option value="merge">归并排序 (O(n log n)) </option>
+                        <option value="heap">堆排序 (O(n log n)) </option>
+                        <option value="quick">快速排序 (O(n log n)) </option>
+                    </select>
+                    <button class="btn btn-green" onclick="runSort()" id="btn-run">开始排序</button>
+                    <div style="margin-left:auto; color:var(--text-muted); font-size:14px;">动画速度: <input type="range" id="algo-speed" min="1" max="100" value="60"></div>
+                </div>
+                <div id="chart-algo" class="chart-stage"></div>
+                <div id="log-algo" class="log-box">系统就绪，等待执行指令...</div>
+            </div>
+        </div>
+
+        <div id="section-struct" class="view-section">
+            <div class="dashboard-card">
+                <h2 class="panel-title">线性数据结构</h2>
+                <div style="background:#eff6ff; padding:15px; border-radius:8px; margin-bottom:20px; color:#1e3a8a; border:1px solid #bfdbfe;">
+                    提示：栈是单开口结构，后进先出；队列是双开口结构，先进先出。
+                </div>
+                <div class="struct-container">
+                    <div class="stack-wrapper">
+                        <h3 style="margin-top:0; color:var(--text-main);">栈</h3>
+                        <div class="controls" style="padding:10px; margin-bottom:10px; width:100%; justify-content:center;">
+                            <button class="btn btn-green" onclick="pushStack()">压栈</button>
+                            <button class="btn btn-red" onclick="popStack()">弹栈</button>
+                        </div>
+                        <div class="stack-box" id="stack-container"></div>
+                    </div>
+                    <div class="queue-wrapper">
+                        <h3 style="margin-top:0; color:var(--text-main);">队列</h3>
+                        <div class="controls" style="padding:10px; margin-bottom:10px; width:100%; justify-content:center;">
+                            <button class="btn btn-green" onclick="enqueue()">入队</button>
+                            <button class="btn btn-red" onclick="dequeue()">出队</button>
+                        </div>
+                        <div class="queue-box" id="queue-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="section-tree" class="view-section">
+            <div class="dashboard-card">
+                <h2 class="panel-title">AVL 平衡二叉搜索树</h2>
+                <div class="controls">
+                    <input type="number" id="tree-input" class="number-input" placeholder="输入数字">
+                    <button class="btn btn-green" onclick="insertNodeFromInput()">插入节点</button>
+                    <button class="btn btn-red" style="margin-left: 10px;" onclick="deleteNodeFromInput()">删除节点</button>
+                    <button class="btn" onclick="insertRandomNode()">随机插入</button>
+                    <button class="btn btn-red" onclick="clearTree()" style="margin-left: auto;">清空二叉树</button>
+                </div>
+                <div id="chart-tree" class="chart-stage" style="height: 450px; background: #fafafa; border: 1px solid var(--border-color); border-radius: 8px;"></div>
+                <div id="log-tree" class="log-box">树的根节点等待播种...</div>
+            </div>
+        </div>
+
+        <div id="section-graph" class="view-section">
+            <div class="dashboard-card">
+                <h2 class="panel-title">图网络探索实验室</h2>
+                <div style="background:#eff6ff; padding:15px; border-radius:8px; margin-bottom:20px; color:#1e3a8a; border:1px solid #bfdbfe; font-size: 14px; line-height: 1.5;">
+                    操作指南：<br>
+                    1. 自由建点：在“建点”框输入任意数字，点击下方空白画布即可生成该节点。<br>
+                    2. 自由连边：在“起点”和“终点”输入已有节点数字，点击“连接”完成连线。<br>
+                    3. 自由遍历：选择遍历算法并输入起始节点，点击“探索”观察算法执行过程。
+                </div>
+                <div class="controls" style="flex-wrap: wrap; gap: 10px;">
+                    <div style="border-right: 2px solid #e2e8f0; padding-right: 15px;">
+                        <span style="font-size:14px; font-weight:bold; color:var(--primary);">建点：</span>
+                        <input type="number" id="graph-node-input" class="number-input" placeholder="数值" style="width:55px;">
+                    </div>
+                    <div style="border-right: 2px solid #e2e8f0; padding-right: 15px; padding-left: 5px;">
+                        <span style="font-size:14px; font-weight:bold; color:var(--primary);">连边：</span>
+                        <input type="number" id="edge-source" class="number-input" placeholder="起点" style="width:55px;">
+                        <input type="number" id="edge-target" class="number-input" placeholder="终点" style="width:55px;">
+                        <button class="btn" onclick="addGraphEdge()">连接</button>
+                    </div>
+                    <div style="padding-left: 5px;">
+                        <span style="font-size:14px; font-weight:bold; color:var(--primary);">遍历：</span>
+                        <select id="graph-select" class="select-input">
+                            <option value="bfs">广度优先</option>
+                            <option value="dfs">深度优先</option>
+                        </select>
+                        <input type="number" id="graph-start-node" class="number-input" placeholder="起点" style="width:55px;">
+                        <button class="btn btn-green" onclick="runGraph()" id="btn-graph-run">探索</button>
+                    </div>
+                    <button class="btn" onclick="initGraphData()" id="btn-graph-reset" style="margin-left: auto; background-color: #64748b;">默认图</button>
+                    <button class="btn btn-red" onclick="clearGraphData()" id="btn-graph-clear">清空</button>
+                </div>
+                <div id="chart-graph" class="chart-stage" style="height: 450px; background: #fafafa; border: 1px solid var(--border-color); border-radius: 8px;"></div>
+                <div id="log-graph" class="log-box">请在上方“建点”框输入数字，点击画布空白处创建顶点...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ── 核心调度系统 ──
+        let isRunning = false;
+        function switchTab(target) {
+            if(isRunning) return alert("算法正在运行中，请等待完成！");
+            document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+            document.getElementById(`menu-${target}`).classList.add('active');
+            document.getElementById(`section-${target}`).classList.add('active');
+            
+            if(target === 'algo') chartAlgo.resize();
+            if(target === 'tree') chartTree.resize();
+            if(target === 'graph') chartGraph.resize();
+        }
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+        function log(id, text, isHighlight=false) {
+            let box = document.getElementById(id);
+            let time = new Date().toLocaleTimeString();
+            let content = isHighlight ? `<span class="highlight">${text}</span>` : text;
+            box.innerHTML = `<div>[${time}] ${content}</div>` + box.innerHTML;
+        }
+        function logTree(text, type='') {
+            let box = document.getElementById('log-tree');
+            let c = type ? `class="${type}"` : '';
+            box.innerHTML = `<div>[${new Date().toLocaleTimeString()}] <span ${c}>${text}</span></div>` + box.innerHTML;
+        }
+
+        // ── 1. 排序算法板块 ──
+        let chartAlgo = echarts.init(document.getElementById('chart-algo'));
+        let arr = [];
+        function initAlgoData() { if(isRunning) return; arr = []; for(let i=0; i<25; i++) arr.push(Math.floor(Math.random()*90)+10); renderChart(); log('log-algo', '数组已重新随机生成。'); }
+        function renderChart(active1=-1, active2=-1, pivot=-1) { chartAlgo.setOption({ xAxis: { type: 'category', show: false }, yAxis: { show: false }, series: [{ type: 'bar', data: arr, itemStyle: { borderRadius: [4, 4, 0, 0], color: p => p.dataIndex === pivot ? '#f43f5e' : (p.dataIndex === active1 || p.dataIndex === active2 ? '#f59e0b' : '#3b82f6') }, label: { show: true, position: 'top', color: '#64748b' } }], animationDurationUpdate: 1010 - document.getElementById("algo-speed").value * 10 }); }
+        async function runSort() { if(isRunning) return; isRunning = true; document.getElementById("btn-run").disabled = true; document.getElementById("btn-reset").disabled = true; let algo = document.getElementById("algo-select").value; log('log-algo', `启动 ${document.getElementById("algo-select").options[document.getElementById("algo-select").selectedIndex].text} ...`, true); if(algo === 'bubble') await bubbleSort(); else if(algo === 'selection') await selectionSort(); else if(algo === 'insertion') await insertionSort(); else if(algo === 'shell') await shellSort(); else if(algo === 'merge') await mergeSortStart(); else if(algo === 'heap') await heapSort(); else if(algo === 'quick') await quickSortStart(); log('log-algo', '排序完全结束！', true); renderChart(); isRunning = false; document.getElementById("btn-run").disabled = false; document.getElementById("btn-reset").disabled = false; }
+        async function bubbleSort() { let delay = () => 1010 - document.getElementById("algo-speed").value * 10; for(let i=0; i<arr.length; i++) { for(let j=0; j<arr.length-1-i; j++) { renderChart(j, j+1); await sleep(delay()); if(arr[j] > arr[j+1]) { let t = arr[j]; arr[j] = arr[j+1]; arr[j+1] = t; renderChart(j, j+1); await sleep(delay()); } } } }
+        async function selectionSort() { let delay = () => 1010 - document.getElementById("algo-speed").value * 10; for(let i=0; i<arr.length-1; i++){ let minIdx = i; for(let j=i+1; j<arr.length; j++){ renderChart(i, j, minIdx); await sleep(delay()); if(arr[j] < arr[minIdx]) minIdx = j; } if(minIdx !== i) { let t = arr[i]; arr[i] = arr[minIdx]; arr[minIdx] = t; renderChart(i, minIdx); await sleep(delay()); } } }
+        async function insertionSort() { let delay = () => 1010 - document.getElementById("algo-speed").value * 10; for(let i = 1; i < arr.length; i++) { let key = arr[i]; let j = i - 1; while(j >= 0 && arr[j] > key) { renderChart(j, j+1, i); await sleep(delay()); arr[j+1] = arr[j]; j--; } arr[j+1] = key; renderChart(-1, -1, j+1); await sleep(delay()); } }
+        async function shellSort() { let delay = () => 1010 - document.getElementById("algo-speed").value * 10; let n = arr.length; for (let gap = Math.floor(n/2); gap > 0; gap = Math.floor(gap/2)) { for (let i = gap; i < n; i += 1) { let temp = arr[i]; let j; for (j = i; j >= gap && arr[j - gap] > temp; j -= gap) { renderChart(j, j-gap, i); await sleep(delay()); arr[j] = arr[j - gap]; } arr[j] = temp; renderChart(j, -1, i); await sleep(delay()); } } }
+        async function mergeSortStart() { await mergeSort(0, arr.length - 1); }
+        async function mergeSort(l, r) { if(l >= r) return; let m = l + Math.floor((r - l) / 2); await mergeSort(l, m); await mergeSort(m + 1, r); await merge(l, m, r); }
+        async function merge(l, m, r) { let delay = () => 1010 - document.getElementById("algo-speed").value * 10; let n1 = m - l + 1, n2 = r - m; let L = new Array(n1), R = new Array(n2); for(let i=0; i<n1; i++) L[i] = arr[l + i]; for(let j=0; j<n2; j++) R[j] = arr[m + 1 + j]; let i = 0, j = 0, k = l; while(i < n1 && j < n2) { renderChart(k, -1, l); await sleep(delay()); if(L[i] <= R[j]) { arr[k] = L[i]; i++; } else { arr[k] = R[j]; j++; } renderChart(k, -1, r); await sleep(delay()); k++; } while(i < n1) { arr[k] = L[i]; i++; k++; renderChart(k-1, -1, l); await sleep(delay()); } while(j < n2) { arr[k] = R[j]; j++; k++; renderChart(k-1, -1, r); await sleep(delay()); } }
+        async function heapSort() { let delay = () => 1010 - document.getElementById("algo-speed").value * 10; let n = arr.length; for (let i = Math.floor(n / 2) - 1; i >= 0; i--) await heapify(n, i, delay); for (let i = n - 1; i > 0; i--) { let temp = arr[0]; arr[0] = arr[i]; arr[i] = temp; renderChart(0, i, i); await sleep(delay()); await heapify(i, 0, delay); } }
+        async function heapify(n, i, delay) { let largest = i, l = 2 * i + 1, r = 2 * i + 2; if (l < n && arr[l] > arr[largest]) largest = l; if (r < n && arr[r] > arr[largest]) largest = r; if (largest != i) { renderChart(i, largest, n); await sleep(delay()); let swap = arr[i]; arr[i] = arr[largest]; arr[largest] = swap; renderChart(i, largest, n); await sleep(delay()); await heapify(n, largest, delay); } }
+        async function quickSortStart() { await quickSort(0, arr.length - 1); }
+        async function quickSort(low, high) { if(low < high) { let pi = await partition(low, high); await quickSort(low, pi - 1); await quickSort(pi + 1, high); } }
+        async function partition(low, high) { let delay = () => 1010 - document.getElementById("algo-speed").value * 10; let pivotVal = arr[high]; let i = low - 1; for(let j = low; j < high; j++) { renderChart(j, -1, high); await sleep(delay()); if(arr[j] < pivotVal) { i++; let t = arr[i]; arr[i] = arr[j]; arr[j] = t; renderChart(i, j, high); await sleep(delay()); } } let t = arr[i+1]; arr[i+1] = arr[high]; arr[high] = t; renderChart(i+1, high, i+1); await sleep(delay()); return i + 1; }
+
+        // ── 2. 栈与队列板块 ──
+        let stackData = [], queueData = [];
+        function getRandNum() { return Math.floor(Math.random() * 90) + 10; }
+        function pushStack() { if(stackData.length >= 6) return alert("栈溢出"); let num = getRandNum(); stackData.push(num); let el = document.createElement('div'); el.className = 'data-node'; el.innerText = num; document.getElementById('stack-container').prepend(el); }
+        function popStack() { if(stackData.length === 0) return alert("栈已空"); stackData.pop(); let container = document.getElementById('stack-container'); container.removeChild(container.firstChild); }
+        function enqueue() { if(queueData.length >= 7) return alert("队列已满"); let num = getRandNum(); queueData.push(num); let el = document.createElement('div'); el.className = 'data-node'; el.innerText = num; document.getElementById('queue-container').appendChild(el); }
+        function dequeue() { if(queueData.length === 0) return alert("队列为空"); queueData.shift(); let container = document.getElementById('queue-container'); container.removeChild(container.firstChild); }
+
+        // ── 3. AVL 平衡二叉树板块 ──
+        class AVLNode { constructor(val) { this.val = val; this.left = null; this.right = null; this.height = 1; } }
+        class AVLTree {
+            constructor() { this.root = null; }
+            getHeight(node) { return node ? node.height : 0; }
+            getBalance(node) { return node ? this.getHeight(node.left) - this.getHeight(node.right) : 0; }
+            rightRotate(y) { let x = y.left; let T2 = x.right; x.right = y; y.left = T2; y.height = Math.max(this.getHeight(y.left), this.getHeight(y.right)) + 1; x.height = Math.max(this.getHeight(x.left), this.getHeight(x.right)) + 1; return x; }
+            leftRotate(x) { let y = x.right; let T2 = y.left; y.left = x; x.right = T2; x.height = Math.max(this.getHeight(x.left), this.getHeight(x.right)) + 1; y.height = Math.max(this.getHeight(y.left), this.getHeight(y.right)) + 1; return y; }
+            insertNode(node, val) {
+                if (!node) return new AVLNode(val);
+                if (val < node.val) node.left = this.insertNode(node.left, val);
+                else if (val > node.val) node.right = this.insertNode(node.right, val);
+                else return node; 
+                node.height = 1 + Math.max(this.getHeight(node.left), this.getHeight(node.right));
+                let balance = this.getBalance(node);
+                if (balance > 1 && val < node.left.val) { logTree(`[失衡] ${node.val} LL 型，[右旋]`, 'action'); return this.rightRotate(node); }
+                if (balance < -1 && val > node.right.val) { logTree(`[失衡] ${node.val} RR 型，[左旋]`, 'action'); return this.leftRotate(node); }
+                if (balance > 1 && val > node.left.val) { logTree(`[失衡] ${node.val} LR 型，[左右双旋]`, 'highlight'); node.left = this.leftRotate(node.left); return this.rightRotate(node); }
+                if (balance < -1 && val < node.right.val) { logTree(`[失衡] ${node.val} RL 型，[右左双旋]`, 'highlight'); node.right = this.rightRotate(node.right); return this.leftRotate(node); }
+                return node;
+            }
+            insert(val) { this.root = this.insertNode(this.root, val); }
+            getMinValueNode(node) { let current = node; while (current.left !== null) current = current.left; return current; }
+            deleteNode(root, val) {
+                if (!root) return root;
+                if (val < root.val) root.left = this.deleteNode(root.left, val);
+                else if (val > root.val) root.right = this.deleteNode(root.right, val);
+                else {
+                    if (!root.left || !root.right) { let temp = root.left ? root.left : root.right; if (!temp) { temp = root; root = null; } else root = temp; }
+                    else { let temp = this.getMinValueNode(root.right); root.val = temp.val; root.right = this.deleteNode(root.right, temp.val); }
+                }
+                if (!root) return root;
+                root.height = Math.max(this.getHeight(root.left), this.getHeight(root.right)) + 1;
+                let balance = this.getBalance(root);
+                if (balance > 1 && this.getBalance(root.left) >= 0) { logTree(`[删除失衡] ${root.val} LL 型，[右旋]`, 'action'); return this.rightRotate(root); }
+                if (balance > 1 && this.getBalance(root.left) < 0) { logTree(`[删除失衡] ${root.val} LR 型，[左右双旋]`, 'highlight'); root.left = this.leftRotate(root.left); return this.rightRotate(root); }
+                if (balance < -1 && this.getBalance(root.right) <= 0) { logTree(`[删除失衡] ${root.val} RR 型，[左旋]`, 'action'); return this.leftRotate(root); }
+                if (balance < -1 && this.getBalance(root.right) > 0) { logTree(`[删除失衡] ${root.val} RL 型，[右左双旋]`, 'highlight'); root.right = this.rightRotate(root.right); return this.leftRotate(root); }
+                return root;
+            }
+            delete(val) { this.root = this.deleteNode(this.root, val); }
+        }
+
+        let myAVL = new AVLTree();
+        let chartTree = echarts.init(document.getElementById('chart-tree'));
+        function buildEChartsData(node) { if (!node) return null; let obj = { id: node.val.toString(), name: node.val.toString(), tooltip: { formatter: `高度: ${node.height}<br>平衡因子: ${myAVL.getBalance(node)}` } }; if (node.left || node.right) { obj.children = []; if (node.left) obj.children.push(buildEChartsData(node.left)); else obj.children.push({ id: 'ghost_L_' + node.val, name: '', itemStyle: { opacity: 0 }, lineStyle: { opacity: 0 }, label: { show: false }, tooltip: { show: false } }); if (node.right) obj.children.push(buildEChartsData(node.right)); else obj.children.push({ id: 'ghost_R_' + node.val, name: '', itemStyle: { opacity: 0 }, lineStyle: { opacity: 0 }, label: { show: false }, tooltip: { show: false } }); } return obj; }
+        function renderAVLTree() { let treeData = buildEChartsData(myAVL.root); if (!treeData) { chartTree.clear(); return; } let currentTreeHeight = myAVL.root ? myAVL.root.height : 1; let dynamicHeight = Math.max(450, currentTreeHeight * 80); document.getElementById('chart-tree').style.height = dynamicHeight + 'px'; chartTree.resize(); chartTree.clear(); chartTree.setOption({ tooltip: { trigger: 'item', triggerOn: 'mousemove' }, series: [{ type: 'tree', data: [treeData], top: '8%', bottom: '8%', left: '2%', right: '2%', symbol: 'circle', symbolSize: 42, orient: 'TB', roam: true, initialTreeDepth: -1, expandAndCollapse: false, itemStyle: { color: '#3b82f6', borderColor: '#2563eb', borderWidth: 2 }, label: { show: true, position: 'inside', color: '#ffffff', fontWeight: 'bold', fontSize: 16, formatter: '{b}' }, lineStyle: { color: '#94a3b8', width: 2 }, animationDurationUpdate: 300 }] }); }
+        function insertNodeFromInput() { let input = document.getElementById('tree-input'); let val = parseInt(input.value); if (isNaN(val)) return alert("请输入有效数字"); logTree(`插入节点: ${val}`); myAVL.insert(val); input.value = ''; renderAVLTree(); }
+        function deleteNodeFromInput() { let input = document.getElementById('tree-input'); let val = parseInt(input.value); if (isNaN(val)) return alert("请输入要删除的数字"); logTree(`删除节点: ${val}`); myAVL.delete(val); input.value = ''; renderAVLTree(); }
+        function insertRandomNode() { let val = Math.floor(Math.random() * 99) + 1; logTree(`插入节点: ${val}`); myAVL.insert(val); renderAVLTree(); }
+        function clearTree() { myAVL.root = null; document.getElementById('log-tree').innerHTML = '树已清空'; renderAVLTree(); }
+
+        // ── 4. 图算法板块核心逻辑 ──
+        let chartGraph = echarts.init(document.getElementById('chart-graph'));
+        let graphNodes = [], graphLinks = [];
+        let adjacencyList = {};
+
+        function logGraph(text, type='') {
+            let box = document.getElementById('log-graph');
+            let c = type ? `class="${type}"` : '';
+            box.innerHTML = `<div>[${new Date().toLocaleTimeString()}] <span ${c}>${text}</span></div>` + box.innerHTML;
+        }
+
+        // 加载默认图
+        function initGraphData() {
+            if(isRunning) return;
+            let initialNodes = ["0", "1", "2", "3", "4", "5", "6"];
+            let positions = [ [350, 80], [200, 200], [500, 200], [100, 350], [280, 350], [420, 350], [600, 350] ];
+            graphNodes = []; graphLinks = []; adjacencyList = {};
+            
+            for(let i=0; i<initialNodes.length; i++) {
+                let name = initialNodes[i];
+                graphNodes.push({ name: name, x: positions[i][0], y: positions[i][1], itemStyle: { color: '#3b82f6' } });
+                adjacencyList[name] = [];
+            }
+            
+            let edges = [ ["0","1"], ["0","2"], ["1","3"], ["1","4"], ["2","5"], ["2","6"], ["4","5"] ];
+            edges.forEach(edge => {
+                graphLinks.push({ source: edge[0], target: edge[1], lineStyle: { color: '#94a3b8', width: 2 } });
+                adjacencyList[edge[0]].push(edge[1]);
+                adjacencyList[edge[1]].push(edge[0]);
+            });
+            
+            renderGraph();
+            logGraph('默认连通图载入成功。');
+        }
+
+        // 清空画布
+        function clearGraphData() {
+            if(isRunning) return;
+            graphNodes = []; graphLinks = []; adjacencyList = {};
+            renderGraph();
+            logGraph('画布已清空，请在上方“建点”框输入数字并在空白处点击。', 'highlight');
+        }
+
+        function renderGraph() {
+            chartGraph.setOption({
+                tooltip: { formatter: '节点: {b}' },
+                animationDurationUpdate: 250,
+                series: [{
+                    type: 'graph', layout: 'none', data: graphNodes, links: graphLinks,
+                    symbolSize: 45, roam: true,
+                    label: { show: true, position: 'inside', color: '#fff', fontWeight: 'bold', fontSize: 16, formatter: '{b}' },
+                    lineStyle: { curveness: 0 }, edgeSymbol: ['none', 'none']
+                }]
+            }, true);
+        }
+
+        // 🌟 核心修改：鼠标点击读取输入框的数字并创建节点
+        chartGraph.getZr().on('click', function(params) {
+            if (isRunning) return;
+            
+            // 如果点击到已有节点，不做处理
+            if (params.target) return;
+
+            let inputEl = document.getElementById('graph-node-input');
+            let valStr = inputEl.value.trim();
+            
+            if (!valStr) {
+                // 只有当停留在图算法页面时才提示
+                if (document.getElementById('section-graph').classList.contains('active')) {
+                    logGraph('提示：请先在上方“建点”框输入数字，再点击画布。');
+                }
+                return;
+            }
+
+            // 防重复判断
+            if (graphNodes.some(n => n.name === valStr)) {
+                return alert("节点数字 " + valStr + " 已存在，请换一个数字！");
+            }
+
+            graphNodes.push({
+                name: valStr,
+                x: params.offsetX,
+                y: params.offsetY,
+                itemStyle: { color: '#3b82f6' }
+            });
+            adjacencyList[valStr] = [];
+            
+            renderGraph();
+            logGraph(`成功在坐标创建节点 [${valStr}]`);
+            inputEl.value = ''; // 自动清空输入框，方便下一次输入
+        });
+
+        // 连边
+        function addGraphEdge() {
+            if (isRunning) return;
+            let src = document.getElementById('edge-source').value.trim();
+            let tgt = document.getElementById('edge-target').value.trim();
+            
+            if (!src || !tgt) return alert("请输入完整的起点和终点");
+            if (src === tgt) return alert("不支持指向自己的节点");
+            if (!adjacencyList[src] || !adjacencyList[tgt]) return alert("输入的节点在画布上不存在");
+            if (adjacencyList[src].includes(tgt)) return alert("节点之间已存在连线");
+            
+            graphLinks.push({ source: src, target: tgt, lineStyle: { color: '#94a3b8', width: 2 } });
+            adjacencyList[src].push(tgt);
+            adjacencyList[tgt].push(src);
+            
+            renderGraph();
+            logGraph(`连线成功：${src} ⇄ ${tgt}`);
+            document.getElementById('edge-source').value = '';
+            document.getElementById('edge-target').value = '';
+        }
+
+        // 遍历算法 (已修复控制锁定 Bug)
+        async function runGraph() {
+            if(isRunning) return;
+            let startNode = document.getElementById('graph-start-node').value.trim();
+            if (!startNode) return alert("请输入遍历起始节点");
+            if (!adjacencyList[startNode]) return alert(`起始节点 [${startNode}] 不存在`);
+
+            isRunning = true;
+            // 锁定按钮，防止执行中误触
+            document.getElementById("btn-graph-run").disabled = true;
+            document.getElementById("btn-graph-reset").disabled = true;
+            document.getElementById("btn-graph-clear").disabled = true;
+            
+            graphNodes.forEach(n => n.itemStyle.color = '#3b82f6');
+            renderGraph();
+            
+            let algo = document.getElementById("graph-select").value;
+            let delay = () => 1010 - (document.getElementById("graph-speed") ? document.getElementById("graph-speed").value : 60) * 10;
+            
+            if (algo === 'bfs') {
+                logGraph(`启动广度优先遍历 - 起点: [${startNode}]`, 'highlight');
+                let queue = [startNode];
+                let visited = new Set([startNode]);
+                
+                let sIdx = graphNodes.findIndex(n => n.name === startNode);
+                if(sIdx !== -1) graphNodes[sIdx].itemStyle.color = '#f59e0b';
+                renderGraph(); await sleep(delay());
+
+                while(queue.length > 0) {
+                    let curr = queue.shift();
+                    logGraph(`[访问] 锁定节点: ${curr}`, 'action');
+                    let cIdx = graphNodes.findIndex(n => n.name === curr);
+                    if(cIdx !== -1) graphNodes[cIdx].itemStyle.color = '#10b981';
+                    renderGraph(); await sleep(delay());
+                    
+                    for(let neighbor of adjacencyList[curr]) {
+                        if(!visited.has(neighbor)) {
+                            visited.add(neighbor);
+                            queue.push(neighbor);
+                            logGraph(`  → 扫描到邻居 ${neighbor}，推入队尾待处理`);
+                            let nIdx = graphNodes.findIndex(n => n.name === neighbor);
+                            if(nIdx !== -1) graphNodes[nIdx].itemStyle.color = '#f59e0b';
+                            renderGraph(); await sleep(delay());
+                        }
+                    }
+                }
+            } else if (algo === 'dfs') {
+                logGraph(`启动深度优先遍历 - 起点: [${startNode}]`, 'highlight');
+                let visited = new Set();
+                
+                async function dfsRecursive(node) {
+                    visited.add(node);
+                    logGraph(`[入栈] 深入探查节点: ${node}`, 'action');
+                    let idx = graphNodes.findIndex(n => n.name === node);
+                    if(idx !== -1) graphNodes[idx].itemStyle.color = '#10b981';
+                    renderGraph(); await sleep(delay());
+                    
+                    for(let neighbor of adjacencyList[node]) {
+                        if(!visited.has(neighbor)) {
+                            let nIdx = graphNodes.findIndex(n => n.name === neighbor);
+                            if(nIdx !== -1) graphNodes[nIdx].itemStyle.color = '#f59e0b';
+                            renderGraph(); await sleep(delay());
+                            await dfsRecursive(neighbor);
+                        }
+                    }
+                    logGraph(`[回溯] 节点 [${node}] 周围已穷尽，向后退栈`);
+                }
+                await dfsRecursive(startNode);
+            }
+            
+            logGraph('探索遍历结束', 'action');
+            isRunning = false;
+            // 解锁按钮
+            document.getElementById("btn-graph-run").disabled = false;
+            document.getElementById("btn-graph-reset").disabled = false;
+            document.getElementById("btn-graph-clear").disabled = false;
+        }
+
+        initAlgoData();
+        initGraphData();
+        
+        window.addEventListener('resize', () => { 
+            if(document.getElementById('section-algo').classList.contains('active')) chartAlgo.resize(); 
+            if(document.getElementById('section-tree').classList.contains('active')) chartTree.resize(); 
+            if(document.getElementById('section-graph').classList.contains('active')) chartGraph.resize();
+        });
+    </script>
+</body>
+</html>
